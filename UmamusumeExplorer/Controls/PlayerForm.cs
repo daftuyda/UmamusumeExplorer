@@ -14,20 +14,19 @@ namespace UmamusumeExplorer.Controls
     partial class PlayerForm : Form
     {
         private readonly MusicManager liveManager;
+        private readonly SongMixer? songMixer;
         private readonly IExtendedSampleProvider? sampleProvider;
+        private readonly List<LyricsTrigger>? lyricsTriggers;
         private readonly int musicId;
         private readonly string songTitle;
         private readonly PinnedBitmap? songJacketPinnedBitmap;
 
-        private readonly Thread? lyricsThread;
-        private readonly Thread? voicesThread;
-
+        private readonly WaveOutEvent waveOut = new() { DesiredLatency = 250 };
+        
         private readonly FormAnimator? animator;
 
-        private readonly WaveOutEvent waveOut = new() { DesiredLatency = 250 };
-
-        private SongMixer? songMixer;
-        private List<LyricsTrigger>? lyricsTriggers;
+        private Thread? lyricsThread;
+        private Thread? voicesThread;
 
         private int lyricsTriggerIndex = 0;
         private bool seeked = false;
@@ -35,7 +34,6 @@ namespace UmamusumeExplorer.Controls
 
         private string[]? currentSingers;
         private bool[]? singersEnabled;
-        private bool[]? exEnabled;
 
         private volatile bool expanded = false;
 
@@ -44,6 +42,8 @@ namespace UmamusumeExplorer.Controls
             InitializeComponent();
 
             liveManager = manager;
+            songMixer = manager.SampleProvider as SongMixer;
+            lyricsTriggers = manager.LyricsTriggers;
             sampleProvider = manager.SampleProvider;
             musicId = manager.MusicId;
             songTitle = AssetTables.GetText(TextCategory.MasterLiveTitle, musicId);
@@ -58,13 +58,8 @@ namespace UmamusumeExplorer.Controls
             int collapsedHeight = (int)(heightFactor * 470);
             int expandedHeight = (int)(heightFactor * 745);
 
-            if (liveManager.CharacterPositions is not null)
+            if (manager.CharacterPositions is not null)
             {
-                if (lyricsTriggers?.Count > 0)
-                {
-                lyricsThread = new(DoLyricsPlayback);
-                }
-                voicesThread = new(DoVoiceUpdate);
                 animator = new(this, collapsedHeight, expandedHeight);
 
                 // collapsed: 470
@@ -90,9 +85,6 @@ namespace UmamusumeExplorer.Controls
                 return;
             }
 
-            songMixer = liveManager.SampleProvider as SongMixer;
-            lyricsTriggers = liveManager.LyricsTriggers;
-
             // If song mixer is null, it means we're in jukebox mode
             if (songMixer is not null)
                 waveOut.Init(songMixer);
@@ -103,12 +95,11 @@ namespace UmamusumeExplorer.Controls
             waveOut.Play();
             UpdatePlayState();
 
-            lyricsThread?.Start();
-            voicesThread?.Start();
+            SetupAndRunLyricsThread();
+            SetupAndRunVoiceThread();
             updateTimer.Enabled = true;
 
             singersEnabled = new bool[liveManager.CharacterPositions?.Length ?? 0];
-            exEnabled = new bool[liveManager.CharacterPositions?.Length ?? 0];
 
             // Update the total time and volume track bars
             totalTimeLabel.Text = $"{sampleProvider?.TotalTime:m\\:ss}";
@@ -122,7 +113,7 @@ namespace UmamusumeExplorer.Controls
         private void PlayButton_Click(object sender, EventArgs e)
         {
             PlayCommand();
-            }
+        }
 
         private void UpdateTimer_Tick(object sender, EventArgs e)
         {
@@ -281,10 +272,10 @@ namespace UmamusumeExplorer.Controls
         private void PlayCommand()
         {
             if (lyricsThread is not null && lyricsThread.ThreadState.HasFlag(ThreadState.Stopped))
-                lyricsThread.Start();
+                SetupAndRunLyricsThread();
 
             if (voicesThread is not null && voicesThread.ThreadState.HasFlag(ThreadState.Stopped))
-                voicesThread.Start();
+                SetupAndRunVoiceThread();
 
             if (waveOut.PlaybackState == PlaybackState.Playing)
                 waveOut.Pause();
@@ -301,6 +292,19 @@ namespace UmamusumeExplorer.Controls
             }
 
             UpdatePlayState();
+        }
+
+        private void SetupAndRunLyricsThread()
+        {
+            if (lyricsTriggers?.Count > 0)
+                lyricsThread = new(DoLyricsPlayback);
+            lyricsThread?.Start();
+        }
+
+        private void SetupAndRunVoiceThread()
+        {
+            voicesThread = new(DoVoiceUpdate);
+            voicesThread.Start();
         }
 
         private void AddCharacters()
@@ -394,7 +398,7 @@ namespace UmamusumeExplorer.Controls
                         else break;
                     }
 
-                    //if (lyricsTriggerIndex >= lyricsTriggers.Count - 1) break;
+                    if (lyricsTriggerIndex >= lyricsTriggers.Count - 1) break;
 
                     string lyrics = lyricsTriggers[lyricsTriggerIndex - 1].Lyrics;
                     BeginInvoke(() =>

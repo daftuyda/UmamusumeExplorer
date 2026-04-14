@@ -1,4 +1,4 @@
-﻿namespace UmamusumeExplorer.Music.Live
+﻿namespace UmamusumeExplorer.Audio.Live
 {
     class PartTrigger
     {

@@ -1,5 +1,5 @@
 ﻿using UmamusumeExplorer.Assets;
-using UmamusumeExplorer.Music.Live;
+using UmamusumeExplorer.Audio.Live;
 using Image = System.Drawing.Image;
 
 namespace UmamusumeExplorer.Controls

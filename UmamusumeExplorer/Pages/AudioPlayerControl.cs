@@ -12,7 +12,7 @@ namespace UmamusumeExplorer.Pages
 {
     partial class AudioPlayerControl : UserControl
     {
-        private readonly WaveOutEvent waveOut;
+        private readonly WaveOutEvent waveOut = new();
         private readonly object waveOutLock = new();
 
         private readonly IEnumerable<ManifestEntry> audioAssetEntries = AssetTables.AudioAssetEntries;
@@ -31,8 +31,6 @@ namespace UmamusumeExplorer.Pages
         public AudioPlayerControl()
         {
             InitializeComponent();
-
-            waveOut = new WaveOutEvent();
 
             if (Application.UseVisualStyles)
                 seekTrackBar.BackColor = Color.FromArgb(255, 249, 249, 249);
@@ -185,7 +183,11 @@ namespace UmamusumeExplorer.Pages
                 timeLengthLabel.Text = umaWaveStream.TotalTime.ToString("mm\\:ss");
 
                 InitializeWaveOut(umaWaveStream);
-                waveOut?.Play();
+                if (waveOut is not null)
+                {
+                    waveOut.PlaybackStopped += (s, e) => UpdatePlayIcon();
+                    waveOut.Play();
+                }
                 UpdatePlayIcon();
             }
 
@@ -214,11 +216,15 @@ namespace UmamusumeExplorer.Pages
             try
             {
                 if (waveOut.PlaybackState == PlaybackState.Playing)
-                {
                     waveOut.Pause();
-                }
                 else
                 {
+                    if (umaWaveStream?.Position >= umaWaveStream?.Length)
+                    {
+                        umaWaveStream.Position = 0;
+                        Invoke(() => seekTrackBar.Value = 0);
+                    }
+
                     waveOut.Play();
                 }
             }
@@ -383,6 +389,7 @@ namespace UmamusumeExplorer.Pages
             waveOut.Stop();
             volumeSampleProvider = new VolumeSampleProvider(waveStream.ToSampleProvider()) { Volume = (float)volumeUpDown.Value };
             waveOut.Init(volumeSampleProvider);
+            waveOut.PlaybackStopped += (s, e) => UpdatePlayIcon();
         }
 
         private void UpdatePlayIcon()

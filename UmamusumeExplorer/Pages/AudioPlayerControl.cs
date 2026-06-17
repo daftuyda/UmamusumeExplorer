@@ -431,18 +431,16 @@ namespace UmamusumeExplorer.Pages
                             UmaWaveStream copy = (UmaWaveStream)track.WaveStream;
                             copy.Loop = false;
 
-                            string fileName = Path.Combine(directory, track.Name + $"_{currentTrack++:d2}.wav");
+                            string fileName = Path.Combine(directory, track.Name + $"_{currentTrack++:d2}");
 
-                            if (fileName.Length > 128)
-                                fileName = fileName[..128];
+                            if (fileName.Length > (255 - 3))
+                                fileName = fileName[..(255 - 3)];
 
-                            WaveFileWriter.CreateWaveFile16(fileName,
+                            WaveFileWriter.CreateWaveFile16(fileName + ".wav",
                                 new VolumeSampleProvider(copy.ToSampleProvider())
                                 {
                                     Volume = (float)volumeUpDown.Value
                                 });
-
-                            WaveFileWriter.CreateWaveFile16(fileName, copy.ToSampleProvider());
 
                             copy.Dispose();
                             Invoke(() => exportButton.Enabled = true);

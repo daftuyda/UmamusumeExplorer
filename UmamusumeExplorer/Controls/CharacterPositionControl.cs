@@ -6,6 +6,8 @@ namespace UmamusumeExplorer.Controls
 {
     partial class CharacterPositionControl : UserControl
     {
+        private readonly float ratio = 264F / 240F;
+
         private int characterPosition = 0;
         private int characterId = 0;
         private Image? characterImage;
@@ -21,8 +23,6 @@ namespace UmamusumeExplorer.Controls
             positionIndexLabel.Text = (characterPosition + 1).ToString();
             characterPictureBox.BackgroundImage = GameAssets.GetCharaIcon(0)?.Bitmap;
             modeButton.Setup(typeof(TrackMode));
-
-            float ratio = (float)characterPictureBox.Height / characterPictureBox.Width;
 
             characterPictureBox.Click += clickEventHandler;
             modeButton.StateChanged += modeChangedEventHandler;
